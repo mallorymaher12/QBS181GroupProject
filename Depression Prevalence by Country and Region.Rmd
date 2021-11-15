@@ -1,0 +1,278 @@
+---
+title: "QBS 181 Group Project"
+author: "Mallory Maher"
+date: "11/6/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "~/Desktop/Dartmouth/qbs 181/group project") #set the correct folder here so that it can be accessed in all your code chunks
+```
+
+## Read in Libraries
+
+To reproduce these results, the libraries you will need are readxl in order to read in the data, tidyverse for data manipultation, ggplot, and joining the datasets, and reshape2 in order to melt the data for the plots.
+
+Load in the necessary libraries:
+
+```{r libraries}
+library(readxl)
+library(tidyverse)
+library(reshape2)
+```
+
+## Read in and Clean Data
+
+First I read in my data. If you are using the csv's on github, change the read_excel to read_csv and change the file name accordingly. Here, I am reading in the data and changing Entity (country or region) and Code (country or region code) to factors. I then combined both datasets into one.
+
+```{r data setup}
+# country data
+mentalHealthDF_country <- 
+  read_excel("Mental health Depression disorder Data.xlsx")
+#str(mentalHealthDF_country)
+
+# regional data
+mentalHealthDF_region <- 
+  read_excel("region data.xlsx")
+#str(mentalHealthDF_region)
+
+# converting Entity and Code to factor
+mentalHealthDF_country$Entity <- as.factor(mentalHealthDF_country$Entity)
+mentalHealthDF_country$Code <- as.factor(mentalHealthDF_country$Code)
+
+mentalHealthDF_region$Entity <- as.factor(mentalHealthDF_region$Entity)
+mentalHealthDF_region$Code <- as.factor(mentalHealthDF_region$Code)
+
+# combining regional and country level data
+mentalHealthDF <- rbind(mentalHealthDF_country, mentalHealthDF_region)
+```
+
+## Plot Function
+
+Here, I made my own plot function to prevent excessive copy pasting. This plot takes the parameters of the country or region and the data frame that you are using and will return a plot that will give you the average prevalence of the seven mental health disorders included from the years 1990 to 2017.
+
+```{r plot function}
+country_region_plots <- function(entity, entityDF){
+  # load in libraries
+  library(tidyverse)
+  library(ggplot2)
+  library(reshape2)
+  
+  # selecting Entity/country of choice
+  regionDF_entity <- entityDF %>% 
+    filter(Entity == entity) %>% 
+    group_by(Year) %>% 
+    summarise(Alcohol_Use = mean(`Alcohol use disorders (%)`),
+              Anxiety = mean(`Anxiety disorders (%)`),
+              Bipolar = mean(`Bipolar disorder (%)`),
+              Depression = mean(`Depression (%)`),
+              Drug_Use = mean(`Drug use disorders (%)`), 
+              Eating_Disorder = mean(`Eating disorders (%)`),
+              Schizophrenia = mean(`Schizophrenia (%)`)) 
+  
+  # melting data for plotting
+  entity_df <- melt(regionDF_entity, id.vars = 'Year', 
+                         variable.name = 'Mental Health Disorder')
+  
+  # plotting all mental health disorder data in a line graph from 1990 to 2017
+  ggplot(data = entity_df, aes(x = Year, y = value, color = `Mental Health Disorder`)) +
+    geom_line(stat = "identity", size = 1) +
+    geom_point(aes(y = value)) +
+    theme_light() +
+    labs(title = paste(entity, "Mental Health Prevalence from 1990 to 2017"), 
+         x = "Year", y = "Prevalence (%)") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    scale_color_brewer(palette = "Paired") 
+}
+```
+
+## Calling the Average Mental Health Disorder Prevalence Function on Areas of Interest 
+
+Here, I am calling the plot to give you an example on how to use the function. Don't forget that entity is a string!
+
+Using this function, we can see that Anxiety has the highest prevalence in North America. Depression has the second highest prevalence, which is the disorder that we focused on. You can see that depression is slightly increasing over the years and drug disorder has the highest increase our of all mental health disorders in North America.
+
+```{r call plot function}
+country_region_plots("North America", mentalHealthDF_region)
+```
+
+```{r call plot function - world}
+country_region_plots("World", mentalHealthDF_country)
+```
+
+Using this function, we can see that Anxiety has the highest prevalence Worldwide, followed closely by depression. 
+
+## Joining Data - Country
+
+Next, I got the cleaned country data from the other group members (except Emma's because her data was used for a sub-analysis, not this overall analysis). I read in each of the cleaned sheets and then joined them using an inner_join by Entity, Code, and Year. If you were to reproduce this, I would recommend skipping this step and using the full country csv in the github folder.
+
+```{r join relational data - country level}
+library(readxl)
+
+# loading in everyone's sheets to join them together
+libby_sheet <- 
+  read_excel("Libby_sheet.xlsx")
+sean_sheet <- 
+  read_excel("sean_sheet.xlsx")
+carson_sheet <- 
+  read_excel("carson_sheet.xlsx")
+
+# changed the edited column name for joining
+colnames(carson_sheet)[which(names(carson_sheet) == "Country")] <- "Entity"
+
+# joining all data to use multiple variables for upcoming plots and models
+full_mentalDF_country <- mentalHealthDF %>% 
+  inner_join(libby_sheet) %>% 
+  inner_join(sean_sheet) %>% 
+  inner_join(carson_sheet)
+
+#write_csv(full_mentalDF_country, "full_mentalHeathDF_country.csv")
+```
+
+## Joining Data - Region
+
+Next, I got the cleaned regional data from the other group members (except Emma's because her data was used for a sub-analysis, not this overall analysis). I read in each of the cleaned sheets and then joined them using an inner_join by Entity, Code, and Year. If you were to reproduce this, I would recommend skipping this step and using the full region csv in the github folder.
+
+```{r join relational data - region level}
+library(readxl)
+library(tidyverse)
+
+# loading in regional data for joining
+sean_sheet2 <- 
+  read_excel("sean_sheet2.xlsx")
+carson_sheet2 <- 
+  read_excel("carson_sheet2.xlsx")
+
+# joining all region data 
+full_mentalDF_region <- mentalHealthDF_region %>% 
+  inner_join(libby_sheet) %>% 
+  inner_join(sean_sheet2) %>% 
+  inner_join(carson_sheet2) %>% 
+  select(-Code)
+
+#write_csv(full_mentalDF_region, "full_mentalHeathDF_region.csv")
+```
+
+## Depression Prevalence by Gender and Age Plot
+
+Here, I made my own plot function to prevent excessive copy pasting. This plot takes the parameters of the country or region and the data frame that you are using and will return a plot that will give you the prevalence of depression by each age range from the years 1990 to 2017 as a line graph and the prevalence of males versus females as a density graph.
+
+```{r age gender plot}
+age_gender_plots <- function(entity, dataframe){
+  # selecting desired entity/country age data
+  plotDF_age <- dataframe %>%
+    filter(Entity == entity) %>% 
+    select(Year, `10-14 years old (%)`,
+           `15-19 years old (%)`,
+           `20-24 years old (%)`,
+           `25-29 years old (%)`,
+           `30-34 years old (%)`,
+           `50-69 years old (%)`,
+           `70+ years old (%)`) 
+  
+  # selecting desired entity/country sex data
+  plotDF_gender <- dataframe %>% 
+    filter(Entity == entity) %>% 
+    select(Year, `Prevalence in males (%)`,
+           `Prevalence in females (%)`)
+  
+  # melting data for plotting
+  plotDF2_age <- melt(plotDF_age, id.vars = 'Year')
+  plotDF2_gender <- melt(plotDF_gender, id.vars = 'Year')
+  
+  # plotting density plot of gender with line graph of age
+  ggplot() +
+    geom_density(aes(x = Year, y = value, group = variable, 
+                     fill = variable), color = "white",
+                 data = plotDF2_gender, stat = "identity", alpha=0.3) +
+    geom_line(aes(x = Year, y = value, group = variable, color = variable), 
+              data = plotDF2_age, size = 1) +
+    #geom_point(aes(x = Year, y = value, color = variable), data = plotDF2_age) +
+    labs(y = "Depression Prevalence (% Population)",
+         title = paste("Prevalence of Depression by Sex and Age in", entity),
+         fill = "Gender", color = "Age Group") +
+    theme_light() +
+    scale_fill_manual(values = c("#34c9eb", "pink")) +
+    scale_color_brewer(palette = "Dark2")
+}
+```
+
+## Calling the Depression Prevalence by Age and Gender Function on Areas of Interest 
+
+Here, I am calling the plot to give you an example on how to use the function and comparing Australasia, North America, and Greenland. Don't forget that entity is a string!
+
+```{r calling age gender plot - australasia}
+age_gender_plots("Australasia", full_mentalDF_region)
+```
+
+Here, we can see that the younger age groups in Australaisa have higher rates of depression prevalence (more on this in the age documentation). We can also see that the prevalence in females is 1.5% higher than males.
+
+```{r calling age gender plot- north america}
+age_gender_plots("North America", full_mentalDF_region)
+```
+
+Here, we can see that the younger age groups in North America have higher rates of depression prevalence (more on this in the age documentation). We can also see that the prevalence in females is about 2.0% higher than males.
+
+```{r calling age gender plot - greenland}
+age_gender_plots("Greenland", full_mentalDF_country)
+```
+
+We noticed on our map plots that Greenland seemed to be an outlier so I decided to look at Greenland specifically. Here, we can see that the y-axis ranges from 0 to 10 whereas in the Australasia and North America plots the axis ranged from 0 to 6.5 or 7. This tells us that Greenland has very high depression prevalence. We hypothesized that this could be from the cold weather and low levels of sunlight. Both of these could lead to seasonal depression. We also noticed that the younger age groups have higher depression prevalence in Greenland, following the trends from North America. We wanted to do this subanalysis on Greenland because this outlier may be pulling up the depression prevalence in North America. The prevalence in females is about 3.5% higher than males. This is a higher disparity than both North America and Australasia.
+
+## Linear Model - All countries
+
+We wanted to see which mental health disorders are associated with depression prevalence across all countries, so I made a linear model to assess the coefficients and how other disorders increase or decrease average depression prevalence. What I found was that Depression prevalence increases as Anxiety, Alcohol Use Disorder, Drug Use Disorders, and Eating Disorder prevalence increases and Depression prevalence decreases when Bipolar Disorder and Schizophrenia prevalence increase. All disorders were statistically significant in this model predicting depression.
+
+```{r linear model for mental health disorder}
+# building linear model - All Countries
+mod1 <- lm(`Depression (%)` ~ `Alcohol use disorders (%)` +
+   `Anxiety disorders (%)` + `Bipolar disorder (%)` +`Drug use disorders (%)` + 
+   `Eating disorders (%)` + `Schizophrenia (%)`, data = full_mentalDF_country)
+
+# calling linear model
+summary(mod1)
+```
+
+## Linear Regression Model - United States
+
+We then wanted to see which mental health disorders are associated with depression prevalence in just the United States, so I made another linear model to assess the coefficients and how other disorders increase or decrease average depression prevalence. What I found was that the only disorder that was statistically significant in predicting Depression was Drug Use.
+
+```{r US linear model}
+# building linear model - United States
+mod2 <- lm(`Depression (%)` ~ `Alcohol use disorders (%)` +
+   `Anxiety disorders (%)` + `Bipolar disorder (%)` +`Drug use disorders (%)` + 
+   `Eating disorders (%)` + `Schizophrenia (%)`, data = full_mentalDF_country[full_mentalDF_country$Entity == "United States",])
+
+# calling linear model
+summary(mod2)
+```
+
+## Linear Regression Model - North America
+
+I wanted to take it one level up from the United States and focus on North America like we did in our presentation, so I made another linear model. What I found was that the only disorders that were statistically significant in predicting Depression were Drug Use and Bipolar Disorder. Depression prevalence increased Drug Use Disorder prevalence increased and decreased when Eating Disorder prevalence increased. 
+
+```{r North America linear model}
+# building linear model - North America
+mod3 <- lm(`Depression (%)` ~ `Alcohol use disorders (%)` +
+   `Anxiety disorders (%)` + `Bipolar disorder (%)` +`Drug use disorders (%)` + 
+   `Eating disorders (%)` + `Schizophrenia (%)`, data = full_mentalDF_region[full_mentalDF_region$Entity == "North America",])
+
+# calling linear model
+summary(mod3)
+```
+
+## Linear Regression Model - Sub-Saharan Africa
+
+After North America, I wanted to compare my findings to Sub-Saharan Africa like we did in our presentation. What I found was that the disorders that were statistically significant in predicting Depression were Alcohol Use, Bipolar Disorder, Drug Use, and Schizophrenia. Depression prevalence increased as Alcohol Use and Bipolar Disorder prevalence increased and decreased when Drug Use and Schizophrenia prevalence increased. 
+
+```{r sub saharan africa linear model}
+# building linear model - Sub-Saharan Africa
+mod4 <- lm(`Depression (%)` ~ `Alcohol use disorders (%)` +
+   `Anxiety disorders (%)` + `Bipolar disorder (%)` +`Drug use disorders (%)` + 
+   `Eating disorders (%)` + `Schizophrenia (%)`, data = full_mentalDF_region[full_mentalDF_region$Entity == "Sub-Saharan Africa",])
+
+# calling linear model
+summary(mod4)
+```
+
