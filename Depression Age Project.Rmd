@@ -2,16 +2,34 @@
 title: "Project"
 author: "Libby Czarniak"
 date: "11/2/2021"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Libraries 
+
+Throughout the analysis, we're going to need the readxl, tidyverse, dplyr, ggplot2 and ggpubr packages, so we can load all of those in now.
+
+```{r}
+##load in all packages
+library(readxl)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+```
+
+## Loading and Cleaning Data
+
+We're going to load in the data sheet with the information on depression of prevalence by age groups and then view it. We'll also make a raw copy of the data. If you're reading in the data from GitHub, simply change the read_excel function to read_csv and change the file name and path as needed. 
+
 ```{r}
 ##load in the data
-library(readxl)
 depression_age <- read_excel("~/Documents/data wrangling/Mental health Depression disorder Data 2.xlsx", 
     sheet = "prevalence-of-depression-by-age")
 View(depression_age)
@@ -19,29 +37,31 @@ View(depression_age)
 depression_age_raw <- depression_age
 ```
 
-```{r}
-##load in all packages
-#install.packages("randomcoloR")
-library(randomcoloR)
-library(tidyverse)
-library(dplyr)
-library(ggplot2)
-library(ggpubr)
-```
-
-First look at the head of the data and the structure to make sure that the coilumn types are what we need. The prevalences should all be numeric data type because they're percentages. The country names and codes should also be characters.
+First, let's look at the head of the data and the structure to get an idea of what we're working with and make sure that the column types are what we need. 
 
 ```{r}
 ##preliminary view of the data
 head(depression_age)
 str(depression_age)
-##all of the prevalence columns are numeric and the country-related columns are characters 
-##change the country-related columns to factors so that the country name and country code will be treated as such
-depression_age$Entity <- as.factor(depression_age$Entity)
-depression_age$Code <- as.factor(depression_age$Code)
+summary(depression_age)
 ```
 
-The column names are really inconvenient to use in analysis, so we'll change them to something that's easier to use. For example, the column names have spaces in them which makes it much harder to call them and use them.
+Based on the preliminary look at the data, we're working with an Entity and Code column that represent the country. These should both be factors so that we can look at meaningful differences between the countries later on. The prevalences (the age group columns) are all a numeric data type because they're percentages, so we can leave those as is. We have 10 columns corresponding to age groups. Lastly, we notice that we don't have any missing values for prevalence, so all of the countries have a measure of prevalence for each age group.
+
+Let's convert the Entity and Code columns both to factors.
+
+```{r}
+##change the country-related columns to factors
+depression_age$Entity <- as.factor(depression_age$Entity)
+depression_age$Code <- as.factor(depression_age$Code)
+
+##look at structure of dataset to make sure they are factors
+str(depression_age)
+```
+
+Now the Entity and Code columns are all factors, which will allow us to make better use of them later on.
+
+We also notice that the column names for the different age groups are going to be really inconvenient to use in our analysis, so we'll change them to something that's easier to use. For each age group column, we'll convert it to words instead of numbers and remove spaces and the (%). For example, let's take 10-14 years old (%) and change it to ten_to_fourteen. We'll follow the same format for the remainder of the age group columns. Let's use capital letters for the first letters in the all ages and standardized age columns instead of underscores.
 
 ```{r}
 ##change the names of the columns with the age groups
@@ -51,28 +71,52 @@ colnames(depression_age)[colnames(depression_age) == '15-19 years old (%)'] <- '
 colnames(depression_age)[colnames(depression_age) == '20-24 years old (%)'] <- 'twenty_to_twentyFour'
 colnames(depression_age)[colnames(depression_age) == '25-29 years old (%)'] <- 'twentyFive_to_twentyNine'
 colnames(depression_age)[colnames(depression_age) == '30-34 years old (%)'] <- 'thirty_to_thirtyFour'
-#colnames(depression_age)[colnames(depression_age) == '15-49 years old (%)'] <- 'fifteen_to_fortyNine'
+colnames(depression_age)[colnames(depression_age) == '15-49 years old (%)'] <- 'fifteen_to_fortyNine'
 colnames(depression_age)[colnames(depression_age) == '50-69 years old (%)'] <- 'fifty_to_sixtyNine'
 colnames(depression_age)[colnames(depression_age) == '70+ years old (%)'] <- 'seventy_plus'
 colnames(depression_age)[colnames(depression_age) == 'Age-standardized (%)'] <- 'StandardizedAge'
+
+##print out column names to make sure they're changed
 colnames(depression_age)
-str(depression_age)
 ```
 
-We'll make a subset of our dataframe with just the regions so that we can compare the regions at a macro level. 
+## Analysis: Comparing Prevalence between Age Groups across Regions
+
+Now that our data is in the format that we need it in we can start our analysis. We're going to keep all of the columns for now, but we'll revisit some of them later on and decide whether they're going to be useful for the analysis.
+
+Before bringing the data into R, I did some preliminary cleaning and noticed that our data also contains regions of the world rather than just countries in the Entity column. If we look back at the structure of the data, we notice that the Entity column has 216 factors-- which is a lot of countries to look at. Therefore, we're going to focus on just regions for now and then pull in country data later on if it'll be necessary or beneficial. This macro-type of analysis will not only make the analysis a little easier but will also give us a more general view of how depression affects different parts of the world. 
+
+Let's take a look at what we have in the Entity column and then make a subset of our dataframe with just the regions. 
 
 ```{r}
-##use the filter function in dplyr to select only rows with region data
+##print out all countries in the entity column
+unique(depression_age$Entity)
+```
+
+We have a really long list of countries! Let's pick out just the regions, and here we're going to treat the following as our regions of the world: Australasia, Central Asia, Central Europe, Central Sub-Saharan Africa, East Asia, Eastern Europe, Eastern Sub-Saharan Africa, Latin America and Caribbean, North Africa and Middle East, North America, Oceania, Southeast Asia, Southern Sub-Saharan Africa, Sub-Saharan Africa, Western Sub-Saharan Africa, and Western Europe.
+
+We'll use these regions to make a new dataframe, and we want to filter the original dataframe to include only rows corresponding to these regions.
+
+```{r}
+##use filter to select only rows with region data
 depression_age_regions <- filter(depression_age, Entity %in% c("Australasia", "Central Asia", "Central Europe", "Central Sub-Saharan Africa", "East Asia", "Eastern Europe", "Eastern Sub-Saharan Africa", "Latin America and Caribbean", "North Africa and Middle East", "North America", "Oceania", "Southeast Asia", "Southern Sub-Saharan Africa", "Sub-Saharan Africa", "Western Sub-Saharan Africa", "Western Europe"))
+
+##turn our filtered data into a dataframe
 depression_age_regions <- as.data.frame(depression_age_regions)
-str(depression_age_regions)
+##look at a summary of our dataframe
+summary(depression_age_regions)
 ```
 
-I'm going to create a set of distinct colors for the line plots so that we can easily determine which country corresponds to each line. I found a resource online that gave different options for generating a color palette with tools in R. One of the tools was the distinctColorPalette function in the randomcoloR package (I installed the package and loaded the library in the beginning of the code). If we specify how many colors we need (16 in this case for our 16 regions), then the randomcolorR will generate a palette of 16 random colors that we can use in our plot. Because we need so many colors, I thought that this would be a better option than specifying all 16 colors myself. 
+Just from the summary of our dataframe above, we can start to pick out some useful pieces of information about how prevalence of depression differs across age groups. For example, the 10-14 age group has the lowest average prevalence of depression among all of the age groups, and the 70+ age group has the highest average prevalence of depression among all of the age groups. The 70+ group also has some pretty high data points- including 8.114% and 9.034%. 
 
-This is the link to the resource where I read about this package and function and found code to use it: https://statisticsglobe.com/create-distinct-color-palette-in-r. 
+We also notice that there are 3 age groups that are distinct from the rest: 15-49, all ages, and standardized age. I am going to exclude all ages and standardized age from the remainder of the analysis because we're more interested in comparing specific age groups to each other. Although we could compare age groups to the aggregate of all ages, I prefer to focus on how age groups compare directly. Also, the 15-49 age group seems to be making up for the fact that we're missing ages 35-49, but it's also double-counting ages 15-34. Therefore, I am also going to exclude that column from the rest of the analysis and focus on the remainder of the age groups. 
+
+As I said before, we want to get a macro-level view of how prevalence is affecting different age groups across the world. Therefore, it would be useful to first build a line plot for each age group that compares the prevalence of depression in different regions. 
+
+I'm going to create a set of distinct colors for the line plots so that we can easily determine which country corresponds to each line. R's default color palettes often make it difficult to discern colors from each other, so creating our own distinct color palette will be useful. We'll need a palette with 16 distinct colors. 
 
 ```{r}
+##create a set of colors to use for the regions in plots 
 region_cols <- c(c(
   "dodgerblue2", 
   "#E31A1C", # red
@@ -90,10 +134,12 @@ region_cols <- c(c(
   "orchid1", 
   "deeppink1", 
   "darkturquoise"))
-#names(region_cols) <- levels(depression_age_regions$Entity)
 ```
 
+Let's build an example plot for the 25-29 age group. We want to show prevalence on the y-axis, the Year on the x-axis, and each line should represent a different country. We should also be using the colors we jsut made for the lines.
+
 ```{r}
+##create example for 25-29 age group.
 depression_age_regions %>% 
   ggplot(aes(x=Year, y=twentyFive_to_twentyNine, group=Entity, color = Entity)) +
   geom_line() +
@@ -103,12 +149,15 @@ depression_age_regions %>%
   scale_color_manual(values = region_cols)
 ```
 
-Since we'll be making a graph for each region, we can build a function that we'll call each time we want to make one.
+This plot actually shows us a lot for the prevalence of depression in this age group. The first thing we notice is the big gap between the top two lines and the rest of the lines. The lines at the top appear to be Australasia and North America, so the prevalence of depression among 25-29 year-olds seems to be much higher in these two regions compared to the rest. I also noticed that the linear trend in prevalence over the time frame isn't as pronounced as I thought it would be. We see that East Asia shows a pretty significant and steady declining trend over time, and both the North American and Latin American/Caribbean regions show more bumps in their respective trends over time.
+
+Let's make similar plots for the remainder of the age groups. Because we'll be making so many, we can create a function that will do this for us based on the age group we want to visualize. A couple things to note is that we'll need a title that changes based on the age group that we're looking at, and we're going to be using the depression_age_regions dataframe above within the function.
 
 ```{r}
-##create a custom function for building the graphs seen above
+##create a custom function for building the graphs for prevalence in each region based on age group
 build_age_graphs <- function(age_grp){
   
+  ##determine which age group we're looking at and set age_title
   if(age_grp == depression_age_regions$ten_to_fourteen){
     age_title = "10-14"
   }
@@ -131,6 +180,8 @@ build_age_graphs <- function(age_grp){
     age_title = "70+"
   }
   
+  ##build the graph with the user-defined age_grp as the values to plot for prevalence
+  ##we still want Year on x-axis and Entity to be group and color
   depression_age_regions %>%
     ggplot(aes(x=Year, y=age_grp, group=Entity, color = Entity)) +
     geom_line(size=.5) +
@@ -144,82 +195,61 @@ build_age_graphs <- function(age_grp){
 Let's build a graph for each of the age groups starting with 10-14.
 
 ```{r}
+##10-14 grap
 build_age_graphs(depression_age_regions$ten_to_fourteen)
-
-##plot for 10-14 year age group
-#depression_age_regions %>% 
-  #ggplot(aes(x=Year, y=ten_to_fourteen, group=Entity, color = Entity)) +
-  #geom_line() +
-  #labs(y = "Prevalence",
-       #title = "Prevalence of Depression in 10-14 Age Group")
 ```
 
+We can make some similar conclusions about 10-14 year-olds as we did with the 25-29 age group. The first thing we notice is the huge increase in prevalence of depression over the 1995-2000 time frame in North America, and Australasia also shows a steady incline from 1990-2005. These two regions also have much higher prevalence compared to other regions for this age group.
 
+We'll build the graph for the 15-19 age group. 
 
 ```{r}
 ##plot for 15-19 year age group
 build_age_graphs(depression_age_regions$fifteen_to_nineteen)
-#depression_age_regions %>% 
-  #ggplot(aes(x=Year, y=fifteen_to_nineteen, group=Entity, color = Entity)) +
-  #geom_line() +
-  #labs(y = "Prevalence",
-      # title = "Prevalence of Depression in 15-19 Age Group")
 ```
+
+Again, we see a similar longitudinal trend in North America as we saw for the 10-14 age group. We also notice that North America and Australasia are set far apart from other regions for 15-19 year olds. 
+
+Let's now look at the 20-24 age group. 
 
 ```{r}
 ##plot for 20-24 year age group
 build_age_graphs(depression_age_regions$twenty_to_twentyFour)
-#depression_age_regions %>% 
- # ggplot(aes(x=Year, y=twenty_to_twentyFour, group=Entity, color = Entity)) +
-  #geom_line() +
-  #labs(y = "Prevalence",
-   #    title = "Prevalence of Depression in 20-24 Age Group")
 ```
 
-```{r}
-##plot for 25-29 year age group
-build_age_graphs(depression_age_regions$twentyFive_to_twentyNine)
-#depression_age_regions %>% 
- # ggplot(aes(x=Year, y=twentyFive_to_twentyNine, group=Entity, color = Entity)) +
-  #geom_line() +
-  #labs(y = "Prevalence",
-   #    title = "Prevalence of Depression in 25-29 Age Group")
-```
+Like we saw with the 25-29 year-olds, East Asia shows a steady decline in prevalence over time. And, as we've seen in the previous age groups, North America and Australasia show much highe prevalence compared to other age groups.
+
+Since we made the graph for 25-29 age group, let's skip to the 30-34 age group now.
 
 ```{r}
 ##plot for 30-34 year age group
 build_age_graphs(depression_age_regions$thirty_to_thirtyFour)
-#depression_age_regions %>% 
- # ggplot(aes(x=Year, y=thirty_to_thirtyFour, group=Entity, color = Entity)) +
-#  geom_line() +
- # labs(y = "Prevalence",
-  #     title = "Prevalence of Depression in 30-34 Age Group")
 ```
+
+Although the gap is closing, we again see that North America and Australasia have a higher prevalence compared to other regions. The longitudinal trends are similar to to those we've seen before, but we see Australasia peaking in 2005 and ten declining through 2019, and North America has decreasing prevalence with a small increase around 2016-2017.
+
+Now let's look at the 50-69 and 70+ age groups. 
 
 ```{r}
 ##plot for 50-69 year age group
 build_age_graphs(depression_age_regions$fifty_to_sixtyNine)
-#depression_age_regions %>% 
- # ggplot(aes(x=Year, y=fifty_to_sixtyNine, group=Entity, color = Entity)) +
-#  geom_line() +
- # labs(y = "Prevalence",
-  #     title = "Prevalence of Depression in 50-69 Age Group")
 ```
 
+The picture is starting to change with this age group- North America and Australasia are no longer set apart from the rest, and we see other regions with a much higher prevalence compared to the others. 
+
+Let's see if we see something similar for the 70+ age group. 
 
 ```{r}
 ##plot for 70+ year age group
 build_age_graphs(depression_age_regions$seventy_plus)
-#depression_age_regions %>% 
- # ggplot(aes(x=Year, y=seventy_plus, group=Entity, color = Entity)) +
-#  geom_line() +
- # labs(y = "Prevalence",
-  #     title = "Prevalence of Depression in 70+ Age Group")
 ```
 
-Now let's make tables that summarize the prevalence of depression over age groups in each country. First, we'll look at each age group individually and use the average prevalence of depression  We'll look at all years and broken down by years.
+So now Australasia and North America actually have the lowest prevalence of depression for the 70+ age group. The picture has flipped where the African and some Asian and European regions have the highest prevalence of depression for the older age groups. 
+
+We'll make a table that summarizes the prevalence of depression over age groups in each country. We're going to use the average prevalence over the 1990-2017 time frame. Let's group by Entity and the  summarize by finding the average prevalence for each age group.
 
 ```{r}
+##make table with average prevalence over the timeframe for each age group in all regions
 depression_age_regions_table <- depression_age_regions %>%
   group_by(Entity) %>%
   summarise(AvgTenFourteen = mean(ten_to_fourteen),
@@ -229,28 +259,33 @@ depression_age_regions_table <- depression_age_regions %>%
             AvgThirtyThirtyfour = mean(thirty_to_thirtyFour),
             AvgFiftySixtynine = mean(fifty_to_sixtyNine),
             AvgSeventyPlus = mean(seventy_plus))
-View(depression_age_regions_table)
+
+depression_age_regions_table
 ```
 
-Based on the graphs above, North America and Australasia seem to have much higher prevalences of depression compared to other regions among younger and middle-aged age groups, so we're going to do a subanalysis of these two regions. We'll do North America first.
+This table helps confirm our observations from the graphs we made above. While North America and Australasia show higher prevalences in younger and middle-aged groups, Africa and a couple Europe and Asia regions show a much higher prevalence for the older age groups.
 
-Because of the way that our data is currently set up, we need to pivot the data for a single region. This puts the year, age group, and prevalence all in a row rather than having the year and age group as a column. We'll make a function to do this since we have to do it so many times in analyses later on. 
+# Sub-Analysis: North America and Australasia
+
+Let's do a sub-analysis for North America and Australasia. We're going to create line plots of the prevalence for each age group in these two regions to have a more direct view of the comparisons between ages. These plots will look very similar to the plots we made above, but instead of the groups being entities, the groups will be the age groups, and we're going to look at one region (entity) at a time.
+
+Because of the way that our data is currently set up, we need to pivot the data for a single region. This puts the year, age group, and prevalence all in a row rather than having the year and specific age groups as columns. Our data should have a column for year, a column with the age group, and a column with the prevalence. We'll make a function to do this since we have to do it several times in analyses later on. The function should take the entity as a user-defined parameter so that we're looking at a single region. We can also change the names of the age groups to something like 10-14 so that when we make plots the labels on the axes use raw numbers rather than whatever the column names were before pivoting.
 
 ```{r}
 ##create a function for pivoting the data
+##take entity as a parameter
 pivot_my_data <- function(entity){
   depression_age_regions %>% 
-  filter(Entity == entity) %>%
+  filter(Entity == entity) %>% ##filter for just the region we're looking at
   select(Year, ten_to_fourteen, fifteen_to_nineteen, twenty_to_twentyFour, twentyFive_to_twentyNine, thirty_to_thirtyFour, fifty_to_sixtyNine, seventy_plus) %>%
-    pivot_longer(!Year, names_to = "age_group", values_to = "prevalence") 
-    #levels(depression_age_regions$age_group) %>% 
-                        #  list("15-19" = "fifteen_to_nineteen",       
-                         #      "10-14" = "ten_to_fourteen",
-                          #     "20-24" = "twenty_to_twentyFour",
-                           #    "25-29" = "twentyFive_to_twentyNine",
-                            #   "30-34" = "thirty_to_thirtyFour", 
-                             #  "50-69" = "fifty_to_sixtyNine",
-                              # "70+" = "seventy_plus")
+    pivot_longer(!Year, names_to = "age_group", values_to = "prevalence") %>% ##pivot so age_group is a column and values are prevalence
+    mutate(age_group = recode(age_group, "fifteen_to_nineteen" = "15-19", ##change the names of the age groups      
+                               "ten_to_fourteen" = "10-14",
+                                "twenty_to_twentyFour" = "20-24",
+                               "twentyFive_to_twentyNine" = "25-29",
+                               "thirty_to_thirtyFour" = "30-34", 
+                               "fifty_to_sixtyNine" = "50-69",
+                               "seventy_plus" = "70+"))
 }
 ```
 
@@ -261,19 +296,7 @@ Now we can pivot the data for North America.
 depression_northAmerica_pivot <- pivot_my_data("North America")
 ```
 
-```{r}
-##filter rows so we have just North America and select columns we'll need
-#depression_northAmerica <- depression_age_regions %>% 
- # filter(Entity == "North America") %>%
-  #select(Year, ten_to_fourteen, fifteen_to_nineteen, twenty_to_twentyFour, twentyFive_to_twentyNine, thirty_to_thirtyFour, fifty_to_sixtyNine, seventy_plus)
-
-##pivot the dataframe so that the age group becomes a row
-##this will give us a prevalence and an age group for each year
-#depression_northAmerica_pivot <- depression_northAmerica %>%
- # pivot_longer(!Year, names_to = "age_group", values_to = "prevalence")
-#View(depression_northAmerica_pivot)
-```
-
+We can use the pivoted dataframe to build another line graph. This will show the prevalence of depression by age group over the time period in North America. 
 
 ```{r}
 ##plot comparing North America age group prevalences
@@ -281,77 +304,90 @@ depression_northAmerica_pivot %>%
   ggplot(aes(x=Year, y=prevalence, group=age_group, color = age_group)) +
   geom_line(size = 1) +
   labs(y = "Prevalence",
-       title = "Prevalence of Depression in North America") +
+       title = "Prevalence of Depression in North America",
+       color = "Age Group") +
   scale_colour_brewer(palette = "Paired") +
   theme_light()
 ```
 
 From this graph, we see that in North America, the 20-24, 25-29, 30-34, and 15-19 age groups have the highest prevalences in the region. We also notice that, right around 1995, the prevalence of depression among the 10-14 age groups and 15-19 age groups starts increasing, and it peaks in about 2000. The 70+ age group also has a lower prevalence of depression compared to these other age groups, and we saw that it's much lower compared to other regions. 
 
-Australasia also had much higher prevalences among the younger and middle-aged groups compared to other regions, so I'm going to make a similar graph to see how prevalence of depression is changing over time within this region. We need ti pivot our data the same way we pivoted the data for North America
+Before we move on to Australasia, let's turn the code for that North America graph into a function since we're going to continue making them for different regions. We'll need to pass in both an entity name and the pivoted dataframe for that entity as parameters of the function.
+
+```{r}
+##create a function that will create the line graph for prevalence in each age group for a specific region
+graph_for_region <- function(entity, df){
+  df %>%
+    ggplot(aes(x=Year, y=prevalence, group=age_group, color = age_group)) +
+    geom_line(size =1) +
+    labs(y = "Prevalence",
+         title = paste("Prevalence of Depression in", entity),
+         color = "Age Group") +
+    scale_colour_brewer(palette = "Paired") +
+    theme_light()
+}
+```
+
+Australasia also had much higher prevalences among the younger and middle-aged groups compared to other regions, so I'm going to make a similar graph to see how prevalence of depression is changing over time within this region. We need to pivot our data the same way we pivoted the data for North America, so we can call the pivot_my_data function, and then make a graph with the function we just created.
 
 ```{r}
 ##pivot the data for Australasia
+depression_australasia_pivot <- pivot_my_data("Australasia")
 
-##filter rows so we have just Australasia and select columns we'll need
-depression_australasia <- depression_age_regions %>% 
-  filter(Entity == "Australasia") %>%
-  select(Year, ten_to_fourteen, fifteen_to_nineteen, twenty_to_twentyFour, twentyFive_to_twentyNine, thirty_to_thirtyFour, fifty_to_sixtyNine, fifteen_to_fortyNine,
-         seventy_plus)
-
-##pivot the dataframe so that the age group becomes a row
-##this will give us a prevalence and an age group for each year
-depression_australasia_pivot <- depression_australasia %>%
-  pivot_longer(!Year, names_to = "age_group", values_to = "prevalence")
-View(depression_australasia_pivot)
+graph_for_region("Australasia", depression_australasia_pivot)
 ```
 
-Now we can make our plot comparing the prevalence of depression between the age groups in Australasia.
+Within Australasia, the 20-24, 25-29, 30-34, 15-19, and 50-69 age groups have a much higher prevalence of depression compared to the 70+ and 10-14 age groups, which is similar to the pattern in North America. 
+
+I'll build a couple of regression models to determine whether age group plays a role in prevalence of depression in these two regions. One model will predict prevalence of depression in North America using age group as the only covariate, and the second model will predict prevalence of depression in Australasia using age group as the only covariate. Since the 70+ age group has the second lowest prevalence in the graph above, I'm going to make them the reference group in order to determine how much higher prevalence is among the adolescent and middle-aged groups compared to the oldest age group. In order to force a certain reference group, we can first set the levels for the age groups so that 70+ comes first and goes in descending age group order from there, and we'll do this in the pivoted dataframe for North America.
 
 ```{r}
-##plot comparing Australasia age group prevalences
-depression_australasia_pivot %>%
-  ggplot(aes(x=Year, y=prevalence, group=age_group, color = age_group)) +
-  geom_line(size =1.5) +
-  labs(y = "Prevalence",
-       title = "Prevalence of Depression in Australasia") +
-  scale_colour_brewer(palette = "Set1") +
-  theme_classic()
-```
-
-Within Australasia, the 20-24, 25-29, 30-34, 15-19, ad 50-69 age groups have a much higher prevalence of depression compared to the 70+ and 10-14 age groups, which is similar to the pattern in North America. 
-
-I'll build a couple of regression models to determine whether age group plays a role in prevalence of depression in these two regions. One model will predict prevalence of depression in North America using age group as the only covariate, and the second model will predict prevalence onf depression in Australasia using age group as the only covariate. Since the 10-14 age group has the lowest prevalence in the graph above, I'm going to make them the reference group in order to determine how much higher prevalence is among the older age groups compared to the reference group.
-
-```{r}
+##relevel the factors to make 70+ the oldest age group and then go in decreasing order by age group
 depression_northAmerica_pivot$age_group <- factor(depression_northAmerica_pivot$age_group,
-                                                  levels=c("seventy_plus",
-                                                           "fifty_to_sixtyNine",
-                                                           "thirty_to_thirtyFour",
-                                                           "twentyFive_to_twentyNine",
-                                                           "twenty_to_twentyFour",
-                                                           "fifteen_to_nineteen",
-                                                           "ten_to_fourteen"))
+                                                  levels=c("70+",
+                                                           "50-69",
+                                                           "30-34",
+                                                           "25-29",
+                                                           "20-24",
+                                                           "15-19",
+                                                           "10-14"))
+##make sure age_group is still a factor
+depression_northAmerica_pivot$age_group <- as.factor(depression_northAmerica_pivot$age_group)
+##make linear model predicting prevalence with age group in North America
 north_america_mod <- lm(prevalence~age_group, data = depression_northAmerica_pivot)
 summary(north_america_mod)
 ```
 
-link for code to change the order of the age group factors to something meaninfgul in the context of what we want to show: https://stats.stackexchange.com/questions/430770/in-a-multilevel-linear-regression-how-does-the-reference-level-affect-other-lev
-```{r}
-depression_australasia_pivot$age_group <- factor(depression_australasia_pivot$age_group,
-                                                  levels=c("seventy_plus",
-                                                           "fifty_to_sixtyNine",
-                                                           "thirty_to_thirtyFour",
-                                                           "twentyFive_to_twentyNine",
-                                                           "twenty_to_twentyFour",
-                                                           "fifteen_to_nineteen",
-                                                           "ten_to_fourteen"))
+The prevalence of depression increases by at least 2% in middle-aged groups compared to the 70+ age group holding all else constant. The coefficients are also all statistically significant, so there are meaningful differences between prevalence of depression for these age groups. 
 
+This link showed me the code to change the order of the age group factors to something meaninfgul in the context of what we want to show: https://stats.stackexchange.com/questions/430770/in-a-multilevel-linear-regression-how-does-the-reference-level-affect-other-lev.
+
+Let's make a similar model for Australasia and relevel the groups in the pivoted dataframe for Australasia as we did before for North America. Again, age group is going to predict prevalence.
+
+```{r}
+##relevel groups so 70+ is reference group
+depression_australasia_pivot$age_group <- factor(depression_australasia_pivot$age_group,
+                                                  levels=c("70+",
+                                                           "50-69",
+                                                           "30-34",
+                                                           "25-29",
+                                                           "20-24",
+                                                           "15-19",
+                                                           "10-14"))
+##build linear model to predict prevalence with age group
 australasia_mod <- lm(prevalence~age_group, data = depression_australasia_pivot)
 summary(australasia_mod)
 ```
 
-Earlier we noted that the regions with the highest prevalence of depression switches when we look at some of the older age groups. Specifically, within the age 50-69 and 70+ age groups, some of the African, European, and Asian regions show much higher prevalence compared to the other regions. In fact, North America and Australasia have the two lowest prevalences in the 70+ age group and some of the lowest in the 50-69 age group. Let's do a subanalysis of the regions with the highest prevalences in the 50-69 age group and the 70+ age group. We'll first determine which regions in these two age groups have an average prevalence of depression over the time frame above 6% in the 50-69 age group and above 7% in the 70+ age group. In the 50-69 age group the highest prevalences are between 6-8%, so we want to make sure that we capture enough of the regions with the higher prevalences. Similarly, in the 70+ age group, the highest prevalences fall in the 7-9% range, so we want to make sure we're looking at all regions with these higher prevalences. 
+We see a similar result with this model where the middle-aged groups have a 2% higher prevalence compared to the 70+ age group. All of the coefficients are also significant, so we know that there are statistically different prevalences between these age groups. 
+
+# Subanalysis: African Regions
+
+Earlier we noted that the regions with the highest prevalence of depression switches when we look at some of the older age groups. Specifically, within the age 50-69 and 70+ age groups, some of the African, European, and Asian regions show much higher prevalence compared to the other regions. In fact, North America and Australasia have the two lowest prevalences in the 70+ age group and some of the lowest in the 50-69 age group. 
+
+Let's do a subanalysis of the regions with the highest prevalences in the 50-69 age group and the 70+ age group. We'll first determine which regions in these two age groups have an average prevalence of depression over the time frame above 6% in the 50-69 age group and above 7% in the 70+ age group. In the 50-69 age group the highest prevalences are between 6-8%, so we want to make sure that we capture enough of the regions with the higher prevalences. Similarly, in the 70+ age group, the highest prevalences fall in the 7-9% range, so we want to make sure we're looking at all regions with prevalences greater than 7%. 
+
+We'll make two tables, one for the 50-69 age group and one for the 70+ age group. In the 50-69 age group table, we just want regions with prevalence higher than 6%, and in the 70+ age group table, we just want regions with prevalence higher than 7%.
 
 ```{r}
 ##which regions have an average prevalence greater than 7% over the 1990-2017 time frame in the 50-59 and 70+
@@ -371,23 +407,7 @@ depression_age_regions_table %>%
 
 Based on these two tables above, it looks like the African and some of the European and Asian regions have the highest prevalence of depression in these two older age groups. Let's do a subanalysis of just the African regions similar to the one we did for Australasia and North America. 
 
-We'll first make graphs for each of the African regions to see how prevalence is changing over time for each of the age groups. We'll need to pivot the data like we did for Australasia and North America, so we can call the function for doing so on each of the African regions then use the graph function for making the graphs of individual regions
-
-
-```{r}
-##create a function that will create the line graph for prevalence in each age group for a specific region
-
-graph_for_region <- function(entity, df){
-  df %>%
-    ggplot(aes(x=Year, y=prevalence, group=age_group, color = age_group)) +
-    geom_line(size =1) +
-    labs(y = "Prevalence",
-         title = paste("Prevalence of Depression in", entity)) +
-    scale_colour_brewer(palette = "Paired") +
-    theme_light()
-}
-```
-
+We'll first make graphs for each of the African regions in the tables above to see how prevalence is changing over time for each of the age groups. We'll need to pivot the data like we did for Australasia and North America, so we can call the function for doing so on each of the African regions then use the graph function for making the graphs of individual regions.
 
 ```{r}
 ##pivot the data for Central Sub-Saharan Africa
@@ -430,29 +450,36 @@ west_subSaharan_pivot <- pivot_my_data("Western Sub-Saharan Africa")
 graph_for_region("Western Sub-Saharan Africa", west_subSaharan_pivot)
 ```
 
-In each of the graphs above we notice that there is a big gap in the prevalence for the two older age groups and the middle-aged and younger age groups. There appears to be a difference between the groups, but is this difference significant? We can again create linear regression models that use age group to predict prevalence of depression. Here we're going to use just the Sub-Saharan African region because all of the graphs for the African regions look similar. This model should be representative of the trends occurring in these regions. 
+In each of the graphs above we notice that there is a big gap in the prevalence for the two older age groups and the middle-aged and younger age groups. The red and yellow lines correspond to the 50-60 and 70+ age groups, respectively, and they are set far apart from the rest of the age groups. Again, this trend is flipped from what we saw before with North America and Australasia. 
 
+There appears to be a difference between the groups, but is this difference significant? We can again create linear regression models that use age group to predict prevalence of depression. Here we're going to use just the Sub-Saharan African region because all of the graphs for the African regions look similar, and Sub-Saharan Africa seems like it might encompass all Sub-Saharan regions (west, east, etc.). This model should be representative of the trends occurring in these regions. 
 
-
-
-We can create a regression model to quantify the differences between prevalence of depression for the different age groups in the African regions. This will help us determine how the older age groups differ from some of the younger age groups.
+We can create a regression model to quantify the differences between prevalence of depression for the different age groups in the African regions. This will help us determine how the older age groups differ from some of the younger age groups. Let's first set the levels of the age group in the pivoted Sub Saharan dataframe so that we can make comparisons between the older age group and the 20-24 age group. The 20-24 group is within that younger and middle-age range, so this will give us a better comparison between the older and younger/middle age groups. 
 
 ```{r}
+##relevel the age groups so 20-24 is the reference group
 subSaharan_pivot$age_group <- factor(subSaharan_pivot$age_group,
-                                                  levels=c("ten_to_fourteen", 
-                                                           "fifteen_to_nineteen",
-                                                           "twenty_to_twentyFour",
-                                                           "twentyFive_to_twentyNine",
-                                                           "thirty_to_thirtyFour",
-                                                           "fifty_to_sixtyNine",
-                                                           "seventy_plus" ))
-
+                                                  levels=c("20-24", 
+                                                           "15-19",
+                                                           "10-14",
+                                                           "25-29",
+                                                           "30-34",
+                                                           "50-69",
+                                                           "70+" ))
+##build linear model predicting prevalence with age group
 subSaharan_mod <- lm(prevalence~age_group, data = subSaharan_pivot)
 summary(subSaharan_mod)
 ```
 
+In Sub-Saharan Africa there's a 3% increase in prevalence for the 50-69 age group compared to the 20-24 age group, and there's a 4.35% increase in prevalence for the 70+ age group compared to the 20-24 age group. The coefficients in the linear regression model are also all significant, so there are meaningful differences between prevalence of depression for older age groups compared to some of the younger age groups. 
 
+Overall, the general conclusion seems to be that we can't treat depression the same across regions if we're looking solely at age. We need to consider which region we're dealing with in order to determine which age group and type of treatment we should focus on. For example, if we're thinking about North America and Australasia, we should focus on the younger and middle-age groups and consider more reactive treatment. If depression is more prevalent among people aged 15-24 in these regions, then we need to react to it and try t fix it more immediately because it's happening pretty quickly. On the other hand, if we're considering Africa regions, we might think about employing preventative treatment because prevalence of depression is much higher among older age groups. 
 
+We should consider different factors that might be influencing the data as well especially since it is based off of self-reporting. For instance, different regions have different views on mental health, so those regions that aren't as progressive with the topic might have lower self-reporting compared to other regions. In North America, we have made huge strides in acceptance of mental health disorders, so it may be that we have higher self-reporting than other regions of the world. 
+
+Furthermore, it would be important to look at the prevalence within the 35-49 age group since it wasn't specifically included in the datset as its own group. I suspect that prevalence might be pretty similar to closer age groups as we saw previously, but this is an age group that is typically forgotten about when we talk about mental health disorders. We often focus on younger and older age groups because they have significant life changes and events that affect psychological well-being. However, the 35-49 age group is equally important because their mental health impacts their children, and the impact of the workplace is also pretty prominent in this age group.
+
+Lastly, it would be interesting to explore other variables that could be affecting depression and could interact with age. Socioeconomic status is known to have a big impact on mental health, and we might find that it affects different age groups in different parts of the world differently. For example, different regions think about money differently, and some age groups are more concerned about money than others (adults more concerned than young children). Another variable we could consider is other mental health disorders within different age groups. Other mental heath disorders was included in a separate part of the bigger dataset, but being able to break that down by age group might illuminate further findings. For example, young females are known for struggling with eating disorders, which are usually linked to anxiety and depression. It would be interesting to discern whether there is an interaction between them and try to draw some conclusions about what other variables could impact prevalence among the different age groups. 
 
 
 
