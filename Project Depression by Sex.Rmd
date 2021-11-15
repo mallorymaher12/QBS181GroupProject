@@ -1,0 +1,426 @@
+---
+title: "Depression Sex Project"
+author: "Libby Czarniak"
+date: "11/10/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+We're going to analyze the data sheet with information about prevalence of depression by sex for just regions. The original dataset had regions and countries combined, but we're going to use a filtered datset for just regions. This will be easier to visualize as opposed to the 200 countries included in the original dataset. 
+
+Let's read in the data and the packages and libraries we'll be using.
+
+```{r}
+##read in the data
+library(readr)
+full_mentalHeathDF_region <- read_csv("~/Documents/data wrangling/full_mentalHeathDF_region.csv")
+View(full_mentalHeathDF_region)
+#full_mentalHeathDF_region <- full_mentalDF_region
+
+#load in packages
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+```
+
+After viewing the entire dataset, we realize that it has several columns that we're not going to need. Let's create a new dataframe with just information about prevalence by sex across the 1990-2017 time period for all entities and the entity column. Specifically, we'll need the entity, year, prevalence in males, and prevalence in females columns. 
+
+At the same time, we're going to pivot our dataframe because keeping columns for both males and females is going to make future analysis challenging. To do this, we'll first rename the Prevalence in males (%) column to be Males and the Prevalence in females (%) column to be Females. Then, we'll pivot all of the columns except for Year and Entity and make the names argument Sex and the values argument Prevalence. After pivoting, we should have a Year, Entity, Sex (specifying males or females) and Prevalence column. 
+
+```{r}
+##select only the columns we'll need
+depression_sex <- full_mentalHeathDF_region %>%
+  select(Entity, Year, `Prevalence in males (%)`, `Prevalence in females (%)`) %>%
+  rename(Males = `Prevalence in males (%)`, Females = `Prevalence in females (%)`) %>% ##rename males and females columns
+  pivot_longer(!Year & !Entity, names_to = "Sex", values_to = "Prevalence") ##pivot to make names sex and values prevalence
+View(depression_sex)
+```
+
+Let's take a look at the data types of the variables in our dataframe to make sure everything is the appropriate type.
+
+```{r}
+head(depression_sex)
+str(depression_sex)
+```
+
+The Year and Prevalence columns are both numeric data types, and that's fine to keep as is. We notice that the Entity and Sex columns are both characters, but we might be better off making them factors in case we need them like that in our analysis.
+
+```{r}
+##make entity and sex columns factors
+depression_sex$Entity <- as.factor(depression_sex$Entity)
+depression_sex$Sex <- as.factor(depression_sex$Sex)
+```
+
+Okay, so now we have our pivoted dataframe with the appripriate dtaa types. We'll create some simple graphs to visualize and explore how the prevalence of depression differs between males and females across the world. To get an overall idea of how prevalence differs between males and females across regions of the world, let's create a faceted plot of line graphs. On the x-axis we want year (to visualize longitudinal trends), the y-axis should be prevalence, and the group and color will both be Sex so that we have a line for males and one for females. Let's also do a facet_wrap by Entity. 
+
+```{r}
+##create faceted plot with a line plot for each region
+#use year on x-axis, prevalence on y-axis, and sex for group/color
+depression_sex %>% ggplot(aes(x=Year, y=Prevalence, group=Sex, color = Sex)) +
+geom_line(size =1) + #use line plot
+labs(y = "Prevalence",
+     title = paste("Prevalence of Depression between Males and Females by Region"),
+     color = "Age Group") +
+scale_colour_brewer(palette = "Dark2") +
+theme_light() +
+  facet_wrap(~Entity) #facet wrap by entity
+```
+
+This faceted groaph gives us a pretty good idea of how the prevalence of depression differs between males and females in the regions of the world. Prevalence is higher for females as opposed to males, and there's some regions where this difference seems to be rather pronounced: North America, Western Europe, Australasia, and Western Sub-Saharan Africa, and North Africa and the Middle East. Let's make individual graphs for these regions that look like the graphs in our faceted plot. We'll just filter the pivoted dataframe to include the specific entity we want a plot for.
+
+```{r}
+##make a graph for north america
+depression_sex_na <-
+  depression_sex %>%
+  filter(Entity == "North America") %>% #filter for just north america
+  ggplot(aes(x=Year, y=Prevalence, group=Sex, color = Sex)) + #put year on x-axis, prevalence on y-axis, and ggrou/color by sex
+  geom_line(size =1) +
+  labs(y = "Prevalence",
+     title = paste("Prevalence of Depression between Males and Females in North America"),
+     color = "Age Group") +
+  scale_colour_brewer(palette = "Dark2") +
+  theme_light()
+depression_sex_na
+```
+
+Based on this gap, there looks to be a 2% difference between the prevalence for males and females in North America, and the prevalence for females also looks like it's increased over the years. 
+
+```{r}
+##make a graph for western europe
+depression_sex_we <-
+  depression_sex %>%
+  filter(Entity == "Western Europe") %>% #filter for just north america
+  ggplot(aes(x=Year, y=Prevalence, group=Sex, color = Sex)) + #put year on x-axis, prevalence on y-axis, and ggrou/color by sex
+  geom_line(size =1) +
+  labs(y = "Prevalence",
+     title = paste("Prevalence of Depression between Males and Females in Western Europe"),
+     color = "Age Group") +
+  scale_colour_brewer(palette = "Dark2") +
+  theme_light()
+depression_sex_we
+```
+
+```{r}
+##make a graph for australasia
+depression_sex_aus <-
+  depression_sex %>%
+  filter(Entity == "Australasia") %>% #filter for just australasia
+  ggplot(aes(x=Year, y=Prevalence, group=Sex, color = Sex)) + #put year on x-axis, prevalence on y-axis, and ggrou/color by sex
+  geom_line(size =1) +
+  labs(y = "Prevalence",
+     title = paste("Prevalence of Depression between Males and Females in Australasia"),
+     color = "Age Group") +
+  scale_colour_brewer(palette = "Dark2") +
+  theme_light()
+depression_sex_aus
+```
+
+```{r}
+##make a graph for western sub-saharan africa
+depression_sex_westSubAfr <-
+  depression_sex %>%
+  filter(Entity == "Western Sub-Saharan Africa") %>% #filter for just western sub-saharan africa
+  ggplot(aes(x=Year, y=Prevalence, group=Sex, color = Sex)) + #put year on x-axis, prevalence on y-axis, and ggrou/color by sex
+  geom_line(size =1) +
+  labs(y = "Prevalence",
+     title = paste("Prevalence of Depression between Males and Females in Western Sub-Saharan Africa"),
+     color = "Age Group") +
+  scale_colour_brewer(palette = "Dark2") +
+  theme_light()
+depression_sex_westSubAfr
+```
+
+In all of these plots we notice that there's a pretty big gap in the prevalence for males and females. We should check whether this difference is statistically significant, which we can do with a t-test.
+
+First, we wanted to look at just North America like we did with the graph above to show the statistically significant difference. We're going to use the original dataset we read in at the beginning with separate columns for males and females.
+
+```{r}
+##filter data for just north america
+ttest_compareNA <- full_mentalHeathDF_region %>% 
+  filter(Entity == "North America") %>% 
+  select(Entity, `Prevalence in males (%)`, `Prevalence in females (%)`)
+
+##run t-test for north america comparing male and female prevalence
+t.test(ttest_compareNA$`Prevalence in males (%)`,
+       ttest_compareNA$`Prevalence in females (%)`)
+```
+
+As you can see, the p-value is less than 0.05 which means that we can reject the null hypothesis and conclude that there is a significant difference between males and females. In North America, the mean for male depression prevalence across all years from 1990 to 2017 is 3.47 and the mean for female prevalence is 5.83.
+
+Next, we wanted to look at Western Europe to statistically show the difference seen in the graph above.
+
+```{r}
+##filter data for just western europe
+ttest_compareWE <- full_mentalHeathDF_region %>% 
+  filter(Entity == "Western Europe") %>% 
+  select(Entity, `Prevalence in males (%)`, `Prevalence in females (%)`)
+
+##run t-test for western europe comparing male and female prevalence
+t.test(ttest_compareWE$`Prevalence in males (%)`,
+       ttest_compareWE$`Prevalence in females (%)`)
+```
+
+As you can see, the p-value is less than 0.05 which means that we can reject the null hypothesis and conclude that there is a significant difference between males and females. In Western Europe, the mean for male depression prevalence across all years from 1990 to 2017 is 2.89 and the mean for female prevalence is 4.98.
+
+Next, we wanted to look at Australasia to once again statistically show the difference seen in the graph above. 
+
+```{r}
+##filter data for just australasia
+ttest_compareAU <- full_mentalHeathDF_region %>% 
+  filter(Entity == "Australasia") %>% 
+  select(Entity, `Prevalence in males (%)`, `Prevalence in females (%)`)
+
+##run t-test for australasia comparing male and female prevalence
+t.test(ttest_compareAU$`Prevalence in males (%)`,
+       ttest_compareAU$`Prevalence in females (%)`)
+```
+
+As you can see, the p-value is less than 0.05 which means that we can reject the null hypothesis and conclude that there is a significant difference between males and females. In Australasia, the mean for male depression prevalence across all years from 1990 to 2017 is 3.70 and the mean for female prevalence is 5.63.
+
+Finally, we wanted to look at Sub-Saharan Africa to once more statistically show the difference seen in the graph above. 
+
+```{r}
+##filter data for just western sub-saharan africa
+ttest_compareWSA <- full_mentalHeathDF_region %>% 
+  filter(Entity == "Western Sub-Saharan Africa") %>% 
+  select(Entity, `Prevalence in males (%)`, `Prevalence in females (%)`)
+
+##run t-test for western sub-saharan africa comparing male and female prevalence
+t.test(ttest_compareWSA$`Prevalence in males (%)`,
+       ttest_compareWSA$`Prevalence in females (%)`)
+```
+
+As you can see, the p-value is less than 0.05 which means that we can reject the null hypothesis and conclude that there is a significant difference between males and females. In Western Sub-Saharan Africa, the mean for male depression prevalence across all years from 1990 to 2017 is 2.95 and the mean for female prevalence is 4.54.
+
+Overall, there are significant differences in the prevalence of depression between males and females. A couple things that we should note is the fact that this data came from self-reporting. If we use common sense/knowledge, females might be more prone to self-report depression than males are. Therefore, the female numbers might be slightly inflated compared to the male numbers. Furthermore, regions like North America, Western Europe, and Australasia are probably more progressive in terms of mental health awareness, so that could contribute to the big differences in prevalence between males and females. 
+
+---
+title: "Depression Prevalence Code"
+author: "Sean McOsker"
+date: "11/10/21"
+output: pdf_document
+---
+
+We are going to attempt to explore the geographic spread of prevalence of depression!
+Let's start with some libraries here
+
+```{r}
+library(gganimate)
+library(dplyr)
+```
+
+Let's read in our dataset
+
+```{r}
+m <- read.csv("mentalhealthdata.csv")
+```
+
+Some of our columns are not named intuitively. Let's change that.
+
+```{r renaming}
+m <- rename(m, PrevMale = X.VALUE.)
+m <- rename(m, PrevFemale = X.VALUE..1)
+
+```
+
+Some basic graphical representations
+
+```{r}
+pm<-ggplot(m, aes(Year, PrevMale)) + geom_point()
+#with linreg
+lm.m <- lm(PrevMale~Year, m)
+pm + stat_smooth()
+```
+Not super helpful - it might be better for this interpretation to group all males from all countries together by the year...
+
+Let's try that!
+
+```{r}
+PrevMalebyYear <- m %>% group_by(Year) %>% summarise(mean(PrevMale), mean(PrevFemale))
+PrevMalebyYear <- rename(PrevMalebyYear, Female = `mean(PrevFemale)`)
+PrevMalebyYear <- rename(PrevMalebyYear, Male = `mean(PrevMale)`)
+```
+
+And perhaps likewise, let's find the average prevalence among males for all observations
+
+```{r}
+PrevMaleOverall <- m%>% group_by(ï..Entity) %>% summarise(mean(PrevMale))
+PrevMaleOverall <- rename(PrevMaleOverall, Country = ï..Entity)
+PrevMaleOverall <- rename(PrevMaleOverall, Prev =`mean(PrevMale)`)
+
+```
+
+Let's now examine how these plots all run
+
+```{r}
+ggplot(PrevMalebyYear, aes(Year, Male)) + geom_point() + geom_smooth(method = "lm")
+#and a loess method if we so choose
+ggplot(PrevMalebyYear, aes(Year, Male)) + geom_point() + geom_smooth(method = "loess")
+
+```
+
+
+I'd like to get a good shapefile representation.
+Let's load in the "rgdal" package for using shapefiles
+
+```{r}
+library(rgdal)
+```
+
+```{r}
+wd <- getwd()
+my_spdf <- readOGR( 
+  dsn= "C:/Users/seanm/OneDrive/Desktop/Grad School Stuff/TM_WORLD_BORDERS_SIMPL-0.3", 
+  layer="TM_WORLD_BORDERS_SIMPL-0.3",
+  verbose=FALSE
+)
+```
+
+Let's see what this shapefile looks like!
+
+```{r}
+plot(my_spdf, col="#f2f2f2", bg="skyblue", lwd=0.25, border=0 )
+```
+
+Let's merge our shapefile with our prevalence measures
+
+```{r}
+world_merged <- merge(my_spdf, PrevMaleOverall, by.x = "NAME", by.y = "Country")
+```
+
+Alright, let's make it pretty and see how it looks!
+
+```{r}
+# Palette of 30 colors
+library(RColorBrewer)
+my_colors <- brewer.pal(9, "Reds") 
+my_colors <- colorRampPalette(my_colors)(30)
+ 
+# Attribute the appropriate color to each country
+class_of_country <- cut(world_merged@data$Prev, 30)
+my_colors <- my_colors[as.numeric(class_of_country)]
+ 
+# Make the plot
+plot(world_merged , ylim=c(0,40), col=my_colors ,  bg = "#A6CAE0")
+#legend(-119, 31.5, legend = levels(cut(world_merged@data$Prev, 30)), fill = my_colors, cex = 0.8, title = "Prevalence Depression")
+
+```
+
+Let's examine america specifically by referencing some regions
+
+```{r}
+newdf <- merge(my_spdf@data, PrevMaleOverall, by.x = "NAME", by.y = "Country")
+
+```
+
+
+```{r}
+Americas <- newdf[newdf$REGION == 19, ]
+plot(Americas, col = my_colors, xlim = c(-50, 0))
+
+```
+
+Now again for SE Asia and the Middle East
+
+```{r}
+SEAsiaMiddleEast <- world_merged[world_merged@data$REGION == 142, ]
+plot(SEAsiaMiddleEast, col = my_colors)
+```
+
+```{r}
+RussiaEurope <- world_merged[world_merged@data$REGION == 150, ]
+plot(RussiaEurope, col = my_colors, xlim = c(0, 100))
+```
+
+Lets make another dataframe using the data from our SPDF
+
+
+
+And let's visualize
+
+```{r}
+worldplot <- ggplot() +
+  
+  geom_polygon(data = Americas, aes(fill = Prev,
+                                 x= LON,
+                                 y = LAT,
+                                 )) + coord_map()
+
+worldplot
+ 
+```
+
+Now let's get fun! Time to make some animations.
+
+```{r}
+p <- ggplot(m, 
+            aes(x = m$PrevFemale, y = m$PrevMale, size = m$Population)) + 
+  geom_point(show.legend = FALSE, alpha = 0.7) + 
+  scale_color_viridis_d() + 
+  scale_size(range = c(2, 12)) + 
+  labs(x = "Females", y = "Males")
+
+p
+```
+
+Adding animation over the year variable
+
+```{r}
+p +transition_time(m$Year) + labs(title = "Year: {frame_time}")
+```
+
+Now let's add some tails to better see changes
+
+```{r}
+pwithtails<-p + transition_time(m$Year) + labs(title = "Year: {frame_time}") +
+  shadow_wake(wake_length = 0.1, alpha = FALSE)
+
+pwithtails
+
+#anim_save(file = "bycountry", animation = pwithtails, path = "C:/Users/seanm/OneDrive/Desktop/Grad School Stuff")
+
+```
+
+Maybe map this as females vs. Males?
+
+```{r}
+poverall <- ggplot(PrevMalebyYear, 
+            aes(x = Male , y = Female, size = 2)) + 
+  geom_point(show.legend = FALSE, alpha = 0.7) + 
+  scale_color_viridis_d() + 
+  scale_size(range = c(2, 12)) + 
+  labs(x = "Females", y = "Males")
+
+poverall
+```
+
+And make it an anim and save it!
+
+```{r}
+#overall<-poverall + transition_time(PrevMalebyYear$Year) + labs(title = "Year: {frame_time}") +
+ # shadow_wake(wake_length = 0.2, alpha = FALSE)
+
+#anim_save(file = "overall", animation = overall, path = "C:/Users/seanm/OneDrive/Desktop/Grad School Stuff")
+
+```
+
+Let's try one more dataset which better illustrates region differences
+
+```{r}
+finalmerged <- merge(PrevMalebyYear, my_spdf)
+```
+
+And renaming it!
+
+```{r}
+m <- rename(m, Country = ï..Entity)
+```
+
+```{r}
+#fullspdf <- merge(my_spdf, m, by.x = "NAME", by.y = "Country", all.x = TRUE)
+```
+
+
