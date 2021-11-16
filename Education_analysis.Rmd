@@ -1,15 +1,16 @@
 ---
-title: "Education and employment analysis"
+title: "Education level and employment status data analysis"
 author: "Emma Wagner"
 date: "11/15/2021"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Read in excel sheet
+In this R markdown, I will analyze the education and employment dataset. 
+To start, I loaded the necessary libraries and read in the excel sheet. I used the head() function as well to make sure the data was read in correctly.
 ```{r}
 library(tidyverse)
 library(readxl)
@@ -17,13 +18,17 @@ library(readxl)
 edu = read_excel("/Users/emmawagner/Desktop/Data Wrangling/Final project/Mental health data cleaned.xlsx", sheet = "depression-edu-cleaned")
 head(edu)
 ```
-Create a preliminary bar plot to look at the data
+
+Next, I created a preliminary bar plot to look at the data. I created a bar graph with country on the x axis and the depression rate (%) on the y axis. 
 ```{r}
 bar = ggplot(edu, aes(x= Code, y = All_total)) +
-  geom_bar(stat= "identity")
+  geom_bar(stat= "identity") +
+  theme(text = element_text(size=8))
 bar
 ```
-Convert the data into long form for future analyses and graphs
+
+Here we can see there is a range in depression rates between different countries- however this is not very useful for analyses of education and employment. In order to better visualize and analyze the data using the tidyverse, we need to convert the data into long form.  
+
 ```{r}
 # Put data into long format
 edu_long = pivot_longer(edu, cols = c("All_active", "All_employed", "All_total", "BelowUS_active", "BelowUS_employed", "BelowUS_total", 
@@ -34,8 +39,9 @@ edu_long = pivot_longer(edu, cols = c("All_active", "All_employed", "All_total",
 edu_long = separate(edu_long, col = EduLevel, into=c("EduLevel", "Employment"), sep = "_")
 
 ```
+edu_long now contains the data in long form, with three new columns. EduLevel and Employment contains the education level and employment connected to each depression rate. The value column contains the rate of depression. This reduces the number of variables to 6, from 15 previously.
 
-Next create a barplot of data from all of the countries to do some initial analysis. With 26 countries, this is difficult to visualize well and find patterns, so next I will aggregate the data for future graphs.
+Next, I created a barplot of data from all of the countries to do some initial analysis of education. I filtered the data to include only the total data for employment. 
 ```{r}
 # barplot by countries
 level_order = c("All", "BelowUS", "US", "Tertiary")
@@ -44,12 +50,36 @@ totalonly= edu_long %>%
 bar = ggplot(totalonly, aes(x= Code, y = value, fill = factor(EduLevel, level= level_order))) +
   geom_bar(stat = "identity", position = "dodge") +
   theme_classic() +
-  scale_fill_brewer(palette = "Paired") +
-  theme(legend.position = "none")
+  scale_fill_brewer(palette = "Paired", labels = c("All", "Below upper secondary", "Upper secondary", "Tertiary")) +
+  theme(text = element_text(size=6)) + 
+  labs(y= "Rate of depresssion (%)", x = "Country", fill = "Education level") 
 bar
 ```
-Below, I filtered the data by employment level and create graphs of the average depression rates grouped by education levels
+In every country, the highest rates of depression were among people with a below upper secondary level of education and the lowest rates of depression were for people with a tertiary level education. This indicates that education reduces depression rates. 
+
+Next, I did the same thing for employment data, filtering to include all levels of education. 
 ```{r}
+# barplot by countries
+level_order = c("total", "active", "employed")
+allonly= edu_long %>%
+  filter(EduLevel == "All")
+bar = ggplot(allonly, aes(x= Code, y = value, fill = factor(Employment, level= level_order))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_classic() +
+  scale_fill_brewer(palette = "Paired", labels = c("Total", "Actively looking", "Employed")) +
+  theme(text = element_text(size=6)) + 
+  labs(y= "Rate of depresssion (%)", x = "Country", fill = "Employment status") 
+bar
+```
+Every country follows the same pattern- employed people have the lowest rates of depression, people actively looking for work have a slightly higher rate, and the total population (including unemployed people) had the highest rates. This supports the idea that employment reduces rates of depression. 
+
+In these two graphs, there is a significant level of variation in depression rates between countries. My group mates analyzed depression prevalence at the regional and country level with bigger data sets, so I am not going to focus on differences between countries, just on differences between groups based on education and employment. 
+
+With 26 countries the above visualizations are a bit cluttered, so in the next plots I will aggregate the data.
+
+Below, I filtered the data by employment level to create plots of the average depression rate for that group. Each plot shows the depression rates for different levels of education for that employment status.
+```{r}
+level_order = c("All", "BelowUS", "US", "Tertiary")
 # for total data
 bar2 =  edu_long %>%
   filter(Employment == "total") %>%
@@ -60,7 +90,7 @@ bar2 =  edu_long %>%
   scale_y_continuous(limits =c(0, 12.5)) +
   theme_classic() +
   geom_text(aes(label = (round(meanByEdu, digits = 2)), vjust = -0.5)) +
-  labs(x= "Education level", y= "Rate of Depression (%)", title = "All Employment Levels") +
+  labs(x= "Education level", y= "Average rate of depression (%)", title = "All employment statuses") +
   theme(legend.position = "none") +
   scale_fill_brewer(palette = "Paired") +
   scale_x_discrete(labels = c("All", "Below upper \n secondary", "Upper secondary", "Tertiary")) 
@@ -76,7 +106,7 @@ bar3 =  edu_long %>%
   scale_y_continuous(limits =c(0, 12.5)) +
   geom_text(aes(label = (round(meanByEdu, digits = 2)), vjust = -0.5)) +
   theme_classic() +
-  labs(x= "Education level", y= "Rate of Depression (%)", title = "Actively looking for employment") +
+  labs(x= "Education level", y= "Average rate of depression (%)", title = "Actively looking for employment") +
   theme(legend.position = "none") +
   scale_fill_brewer(palette = "Paired") +
   scale_x_discrete(labels = c("All", "Below upper \n secondary", "Upper secondary", "Tertiary")) 
@@ -92,15 +122,15 @@ bar3 =  edu_long %>%
   scale_y_continuous(limits =c(0, 12.5)) +
   geom_text(aes(label = (round(meanByEdu, digits = 2)), vjust = -0.5)) +
   theme_classic() +
-  labs(x= "Education level", y= "Rate of Depression (%)", title = "Employed") +
+  labs(x= "Education level", y= "Average rate of depression (%)", title = "Employed") +
   theme(legend.position = "none") +
   scale_fill_brewer(palette = "Paired") +
   scale_x_discrete(labels = c("All", "Below upper \n secondary", "Upper secondary", "Tertiary")) 
 bar3
 ```
-The plots above show that across all levels of employment, more educated people had lower rates of depression than less educated people. Similarly, employed people had lower rates of depression than both those actively looking for work and the total population. 
+These plots show the same patterns as the country level plots above: across all levels of employment, the more educated groups had lower average rates of depression than less educated groups. Similarly, employed people had lower average rates of depression than both those actively looking for work and the total population. Overall, the lowest average rate of depression (4.33%) was for the employed and tertiary education groups. The highest average rate (12.28%) was for below upper secondary education in the total population.
 
-Next, I plotted some country level data for another visual display of the data. I created scatterplots with smoothing lines to show the trends across countries
+For a final set of plots, I plotted scatterplots with smoothing lines to show the trends across countries for another visual display. Each plot is for a different employment status
 ```{r}
 # Scatter plot with smoothing lines for total employment data
 all =edu_long %>%
@@ -110,6 +140,7 @@ p = ggplot(all, aes(x = Code, y = value, fill = EduLevel, color= EduLevel, group
   geom_smooth(method = loess, se =FALSE) +
   scale_color_brewer(palette = "Paired") +
   theme_classic() +
+  theme(text = element_text(size=6)) + 
   labs(title = "Total")
 p
 
@@ -120,7 +151,8 @@ p = ggplot(active, aes(x = Code, y = value, fill = EduLevel, color= EduLevel, gr
   geom_point()+
   geom_smooth(method = loess, se =FALSE) +
   scale_color_brewer(palette = "Paired") +
-  theme_classic() +
+  theme_classic() + 
+  theme(text = element_text(size=6)) + 
   labs(title = "Actively looking for employment")
 p
 
@@ -132,14 +164,14 @@ p = ggplot(employ, aes(x = Code, y = value, fill = EduLevel, color= EduLevel, gr
   geom_smooth(method = loess, se =FALSE) +
   scale_color_brewer(palette = "Paired") +
   theme_classic() +
+  theme(text = element_text(size=6)) + 
   labs(title = "Employed")
 p
 
 ```
+Overall, this showed the same trends as the plots above. More educated people had lower levels of depression and less educated people had higher rates. Because of the amount of variation between countries, this plot is not quite as effective at visualizing the data as the bar plots above.
 
-Overall, this showed the same trends as the bar plots above. More educated people had lower levels of depression and less educated people had higher rates. However, this graph also shows a strong amount of variance in depression rates among countries. I will not dive into analysis of data at the country level, as other members of my group focused on depression rates amongst countries with much larger data sets. 
-
-Next, I ran some anova tests on the data to see if the differences between groups are statistically significant.
+Next, I ran some statistical tests on the data to see if the differences between groups are statistically significant.
 
 First, I ran a one-way anova to see if there were significant differences between groups based on education levels. 
 ```{r}
@@ -153,15 +185,14 @@ Next, I ran a one way anova based on employment
 summary(aov(value~Employment, data = edu_long))
 
 ```
+Again, the p value is less than .05 we can reject the null hypothesis, indicating that the differences between groups are statistically significant.
 
-The p value is less than .05 we can reject the null hypothesis, indicating that the differences between groups are statistically significant.
-
-Finally, I ran a two way anova with both EduLevel and Employment
+Finally, I ran a two way anova with both EduLevel and Employment.
 ```{r}
 summary(aov(value~Employment +EduLevel, data = edu_long))
 ```
-Both p values are less than 0.05 indicating the differences are statistically significant. 
+Both p values are less than 0.05 indicating the differences are statistically significant.
 
-In future analyses, it would be interesting to analyze a dataset with more countries in order to do regional and country level comparisons, similarly to what my group did with the other data sets. Initially, I was expecting that people with higher levels of education would have rates of depression greater than or equal to less educated people. In the United States, there is a pretty unhealthy culture around work with people working long hours with little vacation time. On the other hand, in Europe, where this data is from, there seems to be a more balanced culture around work, with more time off, paid parental leave, etc. So, it would be interesting to analyze how culture and policies around employment impact depression rates.
+Overall, the data showed clearly the positive effects of education and employment on reducing depression rates. This highlights how issues such as the increasing unaffordability of college, unemployment, and lack of quality public school educations for all students are detrimental to mental health at the population level.
 
-Additionally, this data was only from 2014 which limited the analyses. Comparing this data to data from other years could give interesting insights.
+In future analyses, it would be interesting to analyze a dataset with more countries to see if these trends hold true in other countries and regions. Initially, I was not expecting education to reduce depression rates so significantly. In the United States, there is a pretty unhealthy culture around work with long hours with little vacation time. So, I was expecting that people with higher levels of education would be more likely to have high stress jobs and would have rates of depression similar to those with less education. On the other hand, in Europe, where this data is from, there seems to be a more balanced culture around work, with more time off, paid parental leave, etc. I'm curious if this impacts depression rates. So, it would be interesting to analyze how culture and policies around employment and education influence depression rates. Additionally, this data was only from 2014. Analyzing data from other years could allow for more complex analyses and allow us to analyze trends over time.
