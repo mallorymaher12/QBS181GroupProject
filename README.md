@@ -17,6 +17,8 @@ The fully compiled documentation can be found in the QBS-181-Group-Project.pdf f
 
 The Depression Age Project file has full documentation and code for the analysis broken down by age group. The Education_analysis file has full documentation and code for the analysis broken down by employment/education level. The Project Depression by Sex file has full documentation and code for the analysis broken down by sex. The Depression Prevalence by Country and Region has full documentation and code for the joining of the data, mental health disorder breakdown, and age and sex prevalence compared to one another. The dashboard can be found on github in the DepressionPrevalenceDashboard.xlsx file with documentation found in the fully compiled QBS-181-Group-Project.pdf.
 
+We also created an R package for this project which contains functions for our plots and to pivot the data. The R package can be found at https://github.com/mallorymaher12/groupProjFunctions. The manual can be found in our group GitHub in the groupProjFunctions_0.1.0.pdf file.
+
 Objectives and Analysis:	
 	We had two main objectives: provide graphical representations of the prevalence of depression across the world (both crude measures and broken down by variables) and perform statistical analyses to compare and predict the prevalence of depression. 
 	For the analysis itself, we created a graphical representation of how the raw numbers of depression have changed globally during the time period of interest. We also created graphs that depict how prevalence of depression compares to other mental health disorders and constructed a linear regression model to predict the prevalence of depression based on these other disorders.
